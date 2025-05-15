@@ -10,7 +10,7 @@ import (
 )
 
 // Respository to CRUD blog posts
-type BlogPostRepository interface {
+type PostRepository interface {
 	// Add a new blog post to database
 	CreatePost(ctx context.Context, blogPost *models.BlogPost) (*models.BlogPost, error)
 
@@ -21,16 +21,18 @@ type BlogPostRepository interface {
 	GetPostById(ctx context.Context, id int) (*models.BlogPost, error)
 }
 
-var cachedBlogPostRepository BlogPostRepository
+// Cached object for reuse
+var cachedBlogPostRepository PostRepository
 
 type blogPostRespository struct {
+	// DB connection
 	db *sql.DB
 }
 
-var _ BlogPostRepository = (*blogPostRespository)(nil)
+var _ PostRepository = (*blogPostRespository)(nil)
 
 // Get a blog post respository instance
-func NewBlogPostRepository(uri string) (BlogPostRepository, error) {
+func NewPostRepository(uri string) (PostRepository, error) {
 	if cachedBlogPostRepository == nil {
 		db, err := sql.Open("sqlite", uri)
 		if err != nil {
@@ -65,7 +67,6 @@ func (b *blogPostRespository) CreatePost(ctx context.Context, blogPost *models.B
 
 // GetPosts implements BlogPostRepository.
 func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, error) {
-	// Adapted from https://stackoverflow.com/a/17266044
 	statement := `
 	SELECT
 		blog_post.id,
@@ -84,6 +85,7 @@ func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, 
 
 	ret := []models.BlogPost{}
 
+	// Adapted from https://stackoverflow.com/a/17266044
 	for rows.Next() {
 		var id int
 		var title, content string
@@ -106,14 +108,38 @@ func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, 
 
 // GetPostById implements BlogPostRepository.
 func (b *blogPostRespository) GetPostById(ctx context.Context, id int) (*models.BlogPost, error) {
-	statement := "SELECT id, title, content FROM blog_post WHERE id = ? LIMIT 1;"
-	row := b.db.QueryRowContext(ctx, statement, id)
+	statement := `
+	SELECT 
+		blog_post.id as id,
+		blog_post.title as title,
+		blog_post.content as content,
+		comment.id as comment_id,
+		comment.content as comment_content,
+		comment.blog_post_id as comment_post_id
+	FROM blog_post
+	left join comment on blog_post_id = blog_post.id
+	where blog_post.id = ?
+	;
+	`
+	rows, err := b.db.QueryContext(ctx, statement, id)
+	if err != nil {
+		return nil, err
+	}
+
 	ret := &models.BlogPost{}
 
-	if err := row.Scan(&ret.Id, &ret.Title, &ret.Content); err != nil {
-		fmt.Printf("Scan: %v\n", err)
-		return nil, err
-		// return nil, fmt.Errorf("Cannot find post with ID %d", id)
+	for rows.Next() {
+		comment := &models.Comment{}
+
+		if err = rows.Scan(
+			&ret.Id, &ret.Title, &ret.Content, // post data
+			&comment.Id, &comment.Content, &comment.PostId, // comment data
+		); err != nil {
+			fmt.Printf("Scan: %v\n", err)
+			return nil, err
+		}
+
+		ret.Comments = append(ret.Comments, comment)
 	}
 
 	return ret, nil

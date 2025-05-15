@@ -19,7 +19,7 @@ type ErrorResponse struct {
 
 // Get all blog posts
 func GetPosts(c *gin.Context) {
-	repo, err := repository.NewBlogPostRepository(dburi)
+	repo, err := repository.NewPostRepository(dburi)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -45,7 +45,7 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
-	repo, err := repository.NewBlogPostRepository(dburi)
+	repo, err := repository.NewPostRepository(dburi)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -71,7 +71,7 @@ func GetPostById(c *gin.Context) {
 		return
 	}
 
-	repo, err := repository.NewBlogPostRepository(dburi)
+	repo, err := repository.NewPostRepository(dburi)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

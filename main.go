@@ -28,7 +28,7 @@ var albums = []album{
 
 // getAlbums responds with the list of all albums as JSON.
 func getAlbums(c *gin.Context) {
-	repo, err := repository.NewBlogPostRepository("/Users/ylin/repos/blogging-example/data.sqlite")
+	repo, err := repository.NewPostRepository("/Users/ylin/repos/blogging-example/data.sqlite")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}

@@ -9,14 +9,17 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Repository to CRUD comments
 type CommentRepository interface {
 	// Add a new comment to a blog post
 	AddComment(ctx context.Context, comment *models.Comment) (*models.Comment, error)
 }
 
+// Cached object for reuse
 var cachedCommentRepository CommentRepository
 
 type commentRepository struct {
+	// DB connection
 	db *sql.DB
 }
 
