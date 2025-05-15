@@ -1,2 +1,2 @@
-# prosig-challenge
+# blogging-example
 Coding Challenge Solution
