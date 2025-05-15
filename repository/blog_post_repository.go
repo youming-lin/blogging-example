@@ -66,7 +66,17 @@ func (b *blogPostRespository) CreatePost(ctx context.Context, blogPost *models.B
 // GetPosts implements BlogPostRepository.
 func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, error) {
 	// Adapted from https://stackoverflow.com/a/17266044
-	statement := "SELECT id, title, content FROM blog_post;"
+	statement := `
+	SELECT
+		blog_post.id,
+		blog_post.title,
+		blog_post.content,
+		COUNT(comment.id) AS number_of_comments
+	FROM blog_post
+	LEFT JOIN comment ON blog_post_id = blog_post.id
+	GROUP BY 1, 2, 3
+	;
+	`
 	rows, err := b.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
@@ -77,15 +87,17 @@ func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, 
 	for rows.Next() {
 		var id int
 		var title, content string
+		var numberOfComments uint
 
-		if err = rows.Scan(&id, &title, &content); err != nil {
+		if err = rows.Scan(&id, &title, &content, &numberOfComments); err != nil {
 			fmt.Printf("Scan: %v\n", err)
 		}
 
 		ret = append(ret, models.BlogPost{
-			Id:      id,
-			Title:   title,
-			Content: content,
+			Id:               id,
+			Title:            title,
+			Content:          content,
+			NumberOfComments: numberOfComments,
 		})
 	}
 
