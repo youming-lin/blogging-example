@@ -1,6 +1,7 @@
 package main
 
 import (
+	"blogging-example/internal/handlers"
 	"blogging-example/repository"
 	"fmt"
 	"net/http"
@@ -32,7 +33,7 @@ func getAlbums(c *gin.Context) {
 		fmt.Printf("Error: %v\n", err)
 	}
 
-	posts, err := repo.GetGlogPosts(c)
+	posts, err := repo.GetPosts(c)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
@@ -44,8 +45,10 @@ func main() {
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 
-	router.GET("/api/posts", getAlbums)
-	router.POST("/api/posts", getAlbums)
+	router.GET("/api/posts", handlers.GetPosts)
+	router.POST("/api/posts", handlers.CreatePost)
+	router.GET("/api/posts/:id", handlers.GetPostById)
+	router.POST("/api/posts/:id/comments", handlers.AddCommentToPost)
 
 	router.Run("localhost:8080")
 }

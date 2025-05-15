@@ -12,13 +12,16 @@ import (
 // Respository to CRUD blog posts
 type BlogPostRepository interface {
 	// Add a new blog post to database
-	CreateBlogPost(ctx context.Context, blogPost models.BlogPost) error
+	CreatePost(ctx context.Context, blogPost *models.BlogPost) (*models.BlogPost, error)
 
 	// Get all blog posts in database
-	GetGlogPosts(ctx context.Context) ([]models.BlogPost, error)
+	GetPosts(ctx context.Context) ([]models.BlogPost, error)
+
+	// Get blog post by ID
+	GetPostById(ctx context.Context, id int) (*models.BlogPost, error)
 }
 
-var cache BlogPostRepository
+var cachedBlogPostRepository BlogPostRepository
 
 type blogPostRespository struct {
 	db *sql.DB
@@ -28,30 +31,43 @@ var _ BlogPostRepository = (*blogPostRespository)(nil)
 
 // Get a blog post respository instance
 func NewBlogPostRepository(uri string) (BlogPostRepository, error) {
-	if cache == nil {
+	if cachedBlogPostRepository == nil {
 		db, err := sql.Open("sqlite", uri)
 		if err != nil {
 			return nil, err
 		}
 
-		cache = &blogPostRespository{
+		cachedBlogPostRepository = &blogPostRespository{
 			db: db,
 		}
 	}
 
-	return cache, nil
+	return cachedBlogPostRepository, nil
 }
 
-// CreateBlogPost implements BlogPostRepository.
-func (b *blogPostRespository) CreateBlogPost(ctx context.Context, blogPost models.BlogPost) error {
-	panic("unimplemented")
+// CreatePost implements BlogPostRepository.
+func (b *blogPostRespository) CreatePost(ctx context.Context, blogPost *models.BlogPost) (*models.BlogPost, error) {
+	statement := `
+	INSERT INTO blog_post (title, content)
+	VALUES (?, ?)
+	RETURNING id
+	`
+	row := b.db.QueryRowContext(ctx, statement, blogPost.Title, blogPost.Content)
+
+	if err := row.Scan(&blogPost.Id); err != nil {
+		fmt.Printf("Scan: %v\n", err)
+		return nil, err
+		// return nil, fmt.Errorf("Cannot find post with ID %d", id)
+	}
+
+	return blogPost, nil
 }
 
-// GetGlogPosts implements BlogPostRepository.
-func (b *blogPostRespository) GetGlogPosts(ctx context.Context) ([]models.BlogPost, error) {
+// GetPosts implements BlogPostRepository.
+func (b *blogPostRespository) GetPosts(ctx context.Context) ([]models.BlogPost, error) {
 	// Adapted from https://stackoverflow.com/a/17266044
-
-	rows, err := b.db.QueryContext(ctx, "SELECT id, title, content FROM blog_post;")
+	statement := "SELECT id, title, content FROM blog_post;"
+	rows, err := b.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -74,4 +90,19 @@ func (b *blogPostRespository) GetGlogPosts(ctx context.Context) ([]models.BlogPo
 	}
 
 	return ret, err
+}
+
+// GetPostById implements BlogPostRepository.
+func (b *blogPostRespository) GetPostById(ctx context.Context, id int) (*models.BlogPost, error) {
+	statement := "SELECT id, title, content FROM blog_post WHERE id = ? LIMIT 1;"
+	row := b.db.QueryRowContext(ctx, statement, id)
+	ret := &models.BlogPost{}
+
+	if err := row.Scan(&ret.Id, &ret.Title, &ret.Content); err != nil {
+		fmt.Printf("Scan: %v\n", err)
+		return nil, err
+		// return nil, fmt.Errorf("Cannot find post with ID %d", id)
+	}
+
+	return ret, nil
 }
